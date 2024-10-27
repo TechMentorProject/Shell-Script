@@ -3,9 +3,10 @@
 BUCKET_NAME="techmentor-bucket"
 AWS_ACCESS_KEY_ID=""
 AWS_SECRET_ACCESS_KEY=""
-AWS_SESSION_TOKEN=""
+IP_EC2_PUBLIC=""
+KEY_NAME=".pem"
 
-ssh -i "techmentor.pem" -o StrictHostKeyChecking=no ubuntu@ec2-ip.compute-1.amazonaws.com << EOF
+ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute-1.amazonaws.com << EOF
     sudo apt update && sudo apt upgrade –y
 
     docker --version
@@ -78,7 +79,7 @@ ssh -i "techmentor.pem" -o StrictHostKeyChecking=no ubuntu@ec2-ip.compute-1.amaz
 
     sudo docker build -t imagem-java .
     sudo docker run -p 8080:8080 --name ContainerJava \
-    -v /home/ubuntu/base-dados:/app/base-dados \
+    -v /home/ubuntu/docker-java:/app \
     -e AWS_ACCESS_KEY_ID='$AWS_ACCESS_KEY_ID' \
     -e AWS_SECRET_ACCESS_KEY='$AWS_SECRET_ACCESS_KEY' \
     -e AWS_SESSION_TOKEN='$AWS_SESSION_TOKEN' \
