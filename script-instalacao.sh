@@ -1,13 +1,13 @@
 #!/bin/bash
 
-BUCKET_NAME=""
+BUCKET_NAME="techmentor"
 
 AWS_ACCESS_KEY_ID=""
 AWS_SECRET_ACCESS_KEY=""
 AWS_SESSION_TOKEN=""
 
 IP_EC2_PUBLIC=""
-KEY_NAME=""
+KEY_NAME=".pem"
 
 
 ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute-1.amazonaws.com << EOF
@@ -15,7 +15,7 @@ ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute
     sudo apt update && sudo apt upgrade -y
     sudo rm awscliv2.zip
     sudo rm -r aws
-
+    
     echo "Instalando dependências"
     sudo apt install unzip curl -y
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -23,29 +23,33 @@ ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute
     chmod +x aws/install
     sudo ./aws/install
     echo "AWS CLI instalado"
-    sleep 15
+    sleep 5
+
+    echo "Excluindo diretórios"
 
     echo "Instalando / Atualizando Docker"
     sudo apt install docker.io -y
-    sleep 15
+    sleep 5
 
     echo "Excluindo diretórios"
     sudo rm -rf docker-java docker-node
-
     sudo docker stop \$(sudo docker ps -aq)
     sudo docker rm \$(sudo docker ps -aq)
     sudo docker rmi -f \$(sudo docker images -q)
+
     echo "Limpeza de containers e images finalizada"
-    sleep 15
+    sleep 5
 
     sudo systemctl start docker
     sudo systemctl enable docker
     echo "Docker ativado"
 
+    sleep 5
+
     sudo docker pull mysql:5.7
     sudo docker run -d -p 3306:3306 --name ContainerBD -e "MYSQL_DATABASE=techmentor" -e "MYSQL_ROOT_PASSWORD=root" mysql:5.7
     echo "Container de BD criado"
-    sleep 15
+    sleep 5
 
     echo "Criação de diretório Java"
     mkdir docker-java
@@ -60,7 +64,7 @@ ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute
     echo "JAR baixado do S3"
 
     ls /home/ubuntu/docker-java
-    sleep 15
+    sleep 5
 
     echo -e "FROM openjdk:21-jdk\nWORKDIR /app\nCOPY techmentor.jar /app/techmentor.jar\nEXPOSE 8080\nCMD [\"java\", \"-jar\", \"/app/techmentor.jar\"]" > Dockerfile
     echo "DockerFile do Java criado"
@@ -74,7 +78,7 @@ ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute
         -e AWS_SESSION_TOKEN='$AWS_SESSION_TOKEN' \
         imagem-java
     echo "Container de Java criado"
-    sleep 15
+    sleep 5
 
     echo "Criação de diretório Node"
     cd ..
@@ -82,7 +86,7 @@ ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute
     cd docker-node
 
     ls
-    sleep 15
+    sleep 5
 
     echo -e "FROM node:latest\n\nWORKDIR /usr/src/app\n\nRUN git clone https://github.com/TechMentorProject/site-institucional.git\n\nWORKDIR /usr/src/app/site-institucional/web-data-viz\n\nRUN npm install\n\nEXPOSE 3030\n\nCMD [\"npm\", \"start\"]" > Dockerfile
     echo "DockerFile do Node criado"
@@ -91,7 +95,28 @@ ssh -i "$KEY_NAME" -o StrictHostKeyChecking=no ubuntu@ec2-$IP_EC2_PUBLIC.compute
     sudo docker run -d --name ContainerNODE -p 3030:3030 imagem-node
     echo "Container de Node criado"
 
+    cd ..
+    touch rodar_java.sh
+
+    cat <<EOL > /home/ubuntu/rodar_java.sh
+#!/bin/bash
+
+sudo docker rm ContainerJava
+sudo docker run -d -p 8080:8080 --name ContainerJava \
+    -v /home/ubuntu/docker-java:/app \
+    -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+    -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+    -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+    imagem-java
+
+echo "Ao executar verifique os logs do container com o comando: sudo docker logs ContainerJava"
+EOL
+
+    chmod +x rodar_java.sh
+
     (crontab -l 2>/dev/null; echo "0 1 * * * /home/ubuntu/docker/rodar_java.sh") | crontab -
+    echo "Criação do cron realizada"
+    
     echo "Processo finalizado"
 
     sleep 500
