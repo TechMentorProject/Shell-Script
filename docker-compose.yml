@@ -1,0 +1,47 @@
+services:
+  banco:
+    image: mysql:5.7
+    container_name: ContainerBD
+    environment:
+      MYSQL_DATABASE: techmentor
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  node:
+    build:
+      context: ./docker-node
+    container_name: ContainerNODE
+    ports:
+      - "3030:3030"
+    working_dir: /usr/src/app/site-institucional/web-data-viz
+    command: ["npm", "start"]
+    depends_on:
+      - banco
+
+  java:
+    build:
+      context: ./docker-java
+    container_name: ContainerJava
+    ports:
+      - "8080:8080"
+    environment:
+      AWS_ACCESS_KEY_ID: "ASIAWT6FXJAUX4YT3K7N"
+      AWS_SECRET_ACCESS_KEY: "uwWPVR8GO+jhZC2RG/gInox4NlQJQUAeV2EE0nLB"
+      AWS_SESSION_TOKEN: "IQoJb3JpZ2luX2VjEOv//////////wEaCXVzLXdlc3QtMiJHMEUCIEXxiOkVNAbrsOjAeeBku7E8+OqGMszVi+a1oChq8zwVAiEAv5HvwvRI7a81xCwjzNeW6Ijf4bJ7FbriTpIsHxoTXtoqvwIIhP//////////ARABGgw0NTUxNDQzMjcyMDk>"
+      IP_BANCO: banco
+      PORTA_BANCO: "3306"
+    depends_on:
+      - banco
+    volumes:
+      - ./docker-java/techmentor.jar:/app/techmentor.jar
+    working_dir: /app
+    command:
+      - "sh"
+      - "-c"
+      - "sleep 10 && java -jar techmentor.jar"
+
+volumes:
+  db_data:
